@@ -1,6 +1,6 @@
 # Mage
 
-This directory contains the source code of Mage (aka "GPT Web App Generator" aka "Wasp AI"): a Wasp app (so a full-stack web app) that allows you to create a new Wasp app (inception :)!) from just a short description. It uses ChatGPT in a smart way to accomplish this (so it would be clasified as an AI code agent).
+This directory contains the source code of Mage (aka "GPT Web App Generator" aka "Wasp AI"): a Wasp app (so a full-stack web app) that allows you to create a new Wasp app (inception :)!) from just a short description. It uses ChatGPT in a smart way to accomplish this (so it would be classified as an AI code agent).
 
 Mage is hosted at https://usemage.ai and you can use it there for free.
 
@@ -40,5 +40,5 @@ To deploy it, just run `wasp deploy fly deploy`. You might want to add `--org wa
 
 ## FAQ
 
-Q: What is the difference between Wasp AI and Mage? Are those the same thing?
+Q: What is the difference between Wasp AI and Mage? Are those the same thing?<br>
 A: When we say "Wasp AI" we refer to logic implemented in `wasp` CLI, while when we say "Mage" we refer to the Mage web app that really serves as a client for "Wasp AI" (calls it in the background). That said, we sometimes use these interchangeably.

@@ -1,6 +1,6 @@
-import type { AuthenticatedAction, AuthenticatedQuery, _Task } from "wasp/server/_types";
+import type { AuthenticatedActionDefinition, AuthenticatedQueryDefinition, _Task } from "../_types";
 import type { Prisma } from "@prisma/client";
-import { Payload } from "wasp/server/_types/serialization";
+import type { Payload } from "../_types/serialization";
 import type { Task } from "wasp/entities";
 type _WaspEntityTagged = _Task;
 type _WaspEntity = Task;
@@ -8,9 +8,9 @@ type _WaspEntity = Task;
  * PUBLIC API
  */
 export declare namespace tasks {
-    type GetAllQuery<Input extends Payload, Output extends Payload> = AuthenticatedQuery<[_WaspEntityTagged], Input, Output>;
-    type GetQuery<Input extends Payload, Output extends Payload> = AuthenticatedQuery<[_WaspEntityTagged], Input, Output>;
-    type CreateAction<Input extends Payload, Output extends Payload> = AuthenticatedAction<[_WaspEntityTagged], Input, Output>;
+    type GetAllQuery<Input extends Payload, Output extends Payload> = AuthenticatedQueryDefinition<[_WaspEntityTagged], Input, Output>;
+    type GetQuery<Input extends Payload, Output extends Payload> = AuthenticatedQueryDefinition<[_WaspEntityTagged], Input, Output>;
+    type CreateAction<Input extends Payload, Output extends Payload> = AuthenticatedActionDefinition<[_WaspEntityTagged], Input, Output>;
 }
 /**
  * PRIVATE API
@@ -24,7 +24,7 @@ export type GetAllQueryResolved = tasks.GetAllQuery<GetAllInput, GetAllOutput>;
 type GetInput = Prisma.TaskWhereUniqueInput;
 type GetOutput = _WaspEntity | null;
 export type GetQueryResolved = tasks.GetQuery<GetInput, GetOutput>;
-type CreateInput = Prisma.TaskCreateInput;
+type CreateInput = Prisma.XOR<Prisma.TaskCreateInput, Prisma.TaskUncheckedCreateInput>;
 type CreateOutput = _WaspEntity;
 export type CreateActionResolved = tasks.CreateAction<CreateInput, CreateOutput>;
 export {};

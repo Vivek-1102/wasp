@@ -11,6 +11,7 @@ import {
 } from 'wasp/auth/utils'
 import { createSession } from 'wasp/auth/session'
 import { ensureValidUsername, ensurePasswordIsPresent } from 'wasp/auth/validation'
+import { onBeforeLoginHook, onAfterLoginHook } from '../../hooks.js';
 
 export default handleRejection(async (req, res) => {
   const fields = req.body ?? {}
@@ -34,7 +35,19 @@ export default handleRejection(async (req, res) => {
     id: authIdentity.authId
   }) 
 
+  await onBeforeLoginHook({
+      req,
+      providerId,
+      user: auth.user,
+  })
+
   const session = await createSession(auth.id)
+
+  await onAfterLoginHook({
+    req,
+    providerId,
+    user: auth.user,
+  })
 
   return res.json({
       sessionId: session.id,

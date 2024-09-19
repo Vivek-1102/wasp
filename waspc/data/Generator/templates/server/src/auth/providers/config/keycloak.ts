@@ -1,9 +1,7 @@
 {{={= =}=}}
-import { Keycloak } from "arctic";
 
 import type { ProviderConfig } from "wasp/auth/providers/types";
-import { getRedirectUriForCallback } from "../oauth/redirect.js";
-import { ensureEnvVarsForProvider } from "../oauth/env.js";
+import { keycloak } from "wasp/server/auth";
 import { mergeDefaultAndUserConfig } from "../oauth/config.js";
 import { createOAuthProviderRouter } from "../oauth/handler.js";
 
@@ -23,21 +21,9 @@ const _waspUserDefinedConfigFn = undefined
 {=/ configFn.isDefined =}
 
 const _waspConfig: ProviderConfig = {
-    id: "{= providerId =}",
-    displayName: "{= displayName =}",
+    id: keycloak.id,
+    displayName: keycloak.displayName,
     createRouter(provider) {
-        const env = ensureEnvVarsForProvider(
-            ["KEYCLOAK_REALM_URL", "KEYCLOAK_CLIENT_ID", "KEYCLOAK_CLIENT_SECRET"],
-            provider
-        );
-
-        const keycloak = new Keycloak(
-            env.KEYCLOAK_REALM_URL,
-            env.KEYCLOAK_CLIENT_ID,
-            env.KEYCLOAK_CLIENT_SECRET,
-            getRedirectUriForCallback(provider.id).toString(),
-        );
-
         const config = mergeDefaultAndUserConfig({
             scopes: {=& requiredScopes =},
         }, _waspUserDefinedConfigFn);
@@ -46,7 +32,7 @@ const _waspConfig: ProviderConfig = {
             providerProfile: unknown;
             providerUserId: string;
         }> {
-            const userInfoEndpoint = `${env.KEYCLOAK_REALM_URL}/protocol/openid-connect/userinfo`;
+            const userInfoEndpoint = `${keycloak.env.KEYCLOAK_REALM_URL}/protocol/openid-connect/userinfo`;
             const response = await fetch(
                 userInfoEndpoint,
                 {
@@ -68,13 +54,11 @@ const _waspConfig: ProviderConfig = {
 
         return createOAuthProviderRouter({
             provider,
-            stateTypes: ['state', 'codeVerifier'],
+            oAuthType: 'OAuth2WithPKCE',
             userSignupFields: _waspUserSignupFields,
-            getAuthorizationUrl: ({ state, codeVerifier }) => keycloak.createAuthorizationURL(state, codeVerifier, config),
-            getProviderInfo: async ({ code, codeVerifier }) => {
-                const { accessToken } = await keycloak.validateAuthorizationCode(code, codeVerifier);
-                return getKeycloakProfile(accessToken);
-            },
+            getAuthorizationUrl: ({ state, codeVerifier }) => keycloak.oAuthClient.createAuthorizationURL(state, codeVerifier, config),
+            getProviderTokens: ({ code, codeVerifier }) => keycloak.oAuthClient.validateAuthorizationCode(code, codeVerifier),
+            getProviderInfo: ({ accessToken }) => getKeycloakProfile(accessToken),
         });
     },
 }

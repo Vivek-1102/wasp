@@ -23,10 +23,24 @@ export {
   ensureTokenIsPresent,
 } from '../../auth/validation.js'
 
-{=# isEmailAuthEnabled =}
-export * from './email/index.js'
-{=/ isEmailAuthEnabled =}
+export type {
+  OnBeforeSignupHook,
+  OnAfterSignupHook,
+  OnBeforeOAuthRedirectHook,
+  OnBeforeLoginHook,
+  OnAfterLoginHook,
+  InternalAuthHookParams,
+  OAuthData,
+} from './hooks.js'
 
-{=# isUsernameAndPasswordAuthEnabled =}
+{=# isExternalAuthEnabled =}
+export * from './oauth/index.js'
+{=/ isExternalAuthEnabled =}
+
+{=# enabledProviders.isEmailAuthEnabled =}
+export * from './email/index.js'
+{=/ enabledProviders.isEmailAuthEnabled =}
+
+{=# enabledProviders.isUsernameAndPasswordAuthEnabled =}
 export * from './username.js'
-{=/ isUsernameAndPasswordAuthEnabled =}
+{=/ enabledProviders.isUsernameAndPasswordAuthEnabled =}

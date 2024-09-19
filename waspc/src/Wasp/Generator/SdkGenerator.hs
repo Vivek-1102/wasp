@@ -13,7 +13,7 @@ import Control.Concurrent (newChan)
 import Control.Concurrent.Async (concurrently)
 import Data.Aeson (object)
 import Data.Aeson.Types ((.=))
-import Data.Maybe (fromMaybe, isJust, mapMaybe)
+import Data.Maybe (isJust, mapMaybe)
 import StrongPath
 import qualified StrongPath as SP
 import System.Exit (ExitCode (..))
@@ -23,7 +23,6 @@ import qualified Wasp.AppSpec as AS
 import qualified Wasp.AppSpec.App as AS.App
 import qualified Wasp.AppSpec.App.Auth as AS.App.Auth
 import qualified Wasp.AppSpec.App.Dependency as AS.Dependency
-import qualified Wasp.AppSpec.Entity as AS.Entity
 import qualified Wasp.AppSpec.ExternalFiles as EC
 import Wasp.AppSpec.Valid (getLowestNodeVersionUserAllows, isAuthEnabled)
 import qualified Wasp.AppSpec.Valid as AS.Valid
@@ -49,6 +48,7 @@ import Wasp.Generator.SdkGenerator.Server.AuthG (genNewServerApi)
 import Wasp.Generator.SdkGenerator.Server.CrudG (genNewServerCrudApi)
 import Wasp.Generator.SdkGenerator.Server.EmailSenderG (depsRequiredByEmail, genNewEmailSenderApi)
 import Wasp.Generator.SdkGenerator.Server.JobGenerator (depsRequiredByJobs, genNewJobsApi)
+import Wasp.Generator.SdkGenerator.Server.OAuthG (depsRequiredByOAuth)
 import qualified Wasp.Generator.SdkGenerator.Server.OperationsGenerator as ServerOpsGen
 import Wasp.Generator.SdkGenerator.ServerApiG (genServerApi)
 import Wasp.Generator.SdkGenerator.WebSocketGenerator (depsRequiredByWebSockets, genWebSockets)
@@ -59,7 +59,7 @@ import qualified Wasp.Node.Version as NodeVersion
 import Wasp.Project.Common (WaspProjectDir)
 import qualified Wasp.Project.Db as Db
 import qualified Wasp.SemanticVersion as SV
-import Wasp.Util (toLowerFirst, (<++>))
+import Wasp.Util ((<++>))
 
 genSdk :: AppSpec -> Generator [FileDraft]
 genSdk spec = genSdkReal spec
@@ -81,6 +81,7 @@ genSdkReal :: AppSpec -> Generator [FileDraft]
 genSdkReal spec =
   sequence
     [ genFileCopy [relfile|vite-env.d.ts|],
+      genFileCopy [relfile|prisma-runtime-library.d.ts|],
       genFileCopy [relfile|api/index.ts|],
       genFileCopy [relfile|api/events.ts|],
       genFileCopy [relfile|core/storage.ts|],
@@ -119,21 +120,6 @@ genSdkReal spec =
   where
     genFileCopy = return . C.mkTmplFd
 
--- genSdkHardcoded :: Generator [FileDraft]
--- genSdkHardcoded =
---   return []
---   where
---     copyFile = C.mkTmplFd
---     copyFolder :: Path' (Rel SdkTemplatesDir) (Dir d) -> FileDraft
---     copyFolder modul =
---       createCopyDirFileDraft
---         RemoveExistingDstDir
---         (dstFolder </> castRel modul)
---         (srcFolder </> modul)
---     dstFolder = C.sdkRootDirInProjectRootDir
---     srcFolder = absSdkTemplatesDir
---     absSdkTemplatesDir = unsafePerformIO getTemplatesDirAbsPath </> C.sdkTemplatesDirInTemplatesDir
-
 genEntitiesAndServerTypesDirs :: AppSpec -> Generator [FileDraft]
 genEntitiesAndServerTypesDirs spec =
   return
@@ -170,17 +156,10 @@ genEntitiesAndServerTypesDirs spec =
         ( Just $
             object
               [ "entities" .= allEntities,
-                "isAuthEnabled" .= isJust maybeUserEntityName,
-                "userEntityName" .= userEntityName,
-                "authEntityName" .= DbAuth.authEntityName,
-                "authFieldOnUserEntityName" .= DbAuth.authFieldOnUserEntityName,
-                "authIdentityEntityName" .= DbAuth.authIdentityEntityName,
-                "identitiesFieldOnAuthEntityName" .= DbAuth.identitiesFieldOnAuthEntityName,
-                "userFieldName" .= toLowerFirst userEntityName
+                "isAuthEnabled" .= isJust maybeUserEntityName
               ]
         )
-    userEntityName = fromMaybe "" maybeUserEntityName
-    allEntities = map (makeJsonWithEntityData . fst) $ AS.getDecls @AS.Entity.Entity spec
+    allEntities = map (makeJsonWithEntityData . fst) $ AS.getEntities spec
     maybeUserEntityName = AS.refName . AS.App.Auth.userEntity <$> AS.App.auth (snd $ AS.Valid.getApp spec)
 
 genPackageJson :: AppSpec -> Generator FileDraft
@@ -218,6 +197,7 @@ npmDepsForSdk spec =
             ("@types/react-router-dom", "^5.3.3")
           ]
           ++ depsRequiredForAuth spec
+          ++ depsRequiredByOAuth spec
           -- This must be installed in the SDK because it lists prisma/client as a dependency.
           -- Installing it inside .wasp/out/server/node_modules would also
           -- install prisma/client in the same folder, which would cause our
@@ -286,10 +266,17 @@ genTsConfigJson = do
       )
 
 depsRequiredForAuth :: AppSpec -> [AS.Dependency.Dependency]
-depsRequiredForAuth spec =
-  [AS.Dependency.make ("@stitches/react", show versionRange) | isAuthEnabled spec]
+depsRequiredForAuth spec = maybe [] (const authDeps) maybeAuth
   where
-    versionRange = SV.Range [SV.backwardsCompatibleWith (SV.Version 1 2 8)]
+    maybeAuth = AS.App.auth $ snd $ AS.Valid.getApp spec
+    authDeps =
+      AS.Dependency.fromList
+        [ -- NOTE: If Stitches start being used outside of auth,
+          -- we should include this dependency in the SDK deps.
+          ("@stitches/react", "^1.2.8"),
+          -- Argon2 is used for hashing passwords.
+          ("@node-rs/argon2", "^1.8.3")
+        ]
 
 depsRequiredByTailwind :: AppSpec -> [AS.Dependency.Dependency]
 depsRequiredByTailwind spec =

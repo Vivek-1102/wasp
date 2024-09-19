@@ -1,8 +1,7 @@
 {{={= =}=}}
-import { GitHub } from "arctic";
 
 import type { ProviderConfig } from "wasp/auth/providers/types";
-import { ensureEnvVarsForProvider } from "../oauth/env.js";
+import { github } from "wasp/server/auth";
 import { mergeDefaultAndUserConfig } from "../oauth/config.js";
 import { createOAuthProviderRouter } from "../oauth/handler.js";
 
@@ -22,19 +21,9 @@ const _waspUserDefinedConfigFn = undefined
 {=/ configFn.isDefined =}
 
 const _waspConfig: ProviderConfig = {
-    id: "{= providerId =}",
-    displayName: "{= displayName =}",
+    id: github.id,
+    displayName: github.displayName,
     createRouter(provider) {
-        const env = ensureEnvVarsForProvider(
-            ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
-            provider
-        );
-
-        const github = new GitHub(
-            env.GITHUB_CLIENT_ID,
-            env.GITHUB_CLIENT_SECRET,
-        );
-
         const config = mergeDefaultAndUserConfig({
             scopes: {=& requiredScopes =},
         }, _waspUserDefinedConfigFn);
@@ -77,13 +66,11 @@ const _waspConfig: ProviderConfig = {
 
         return createOAuthProviderRouter({
             provider,
-            stateTypes: ['state'],
+            oAuthType: 'OAuth2',
             userSignupFields: _waspUserSignupFields,
-            getAuthorizationUrl: ({ state }) => github.createAuthorizationURL(state, config),
-            getProviderInfo: async ({ code }) => {
-                const { accessToken } = await github.validateAuthorizationCode(code);
-                return getGithubProfile(accessToken);
-            },
+            getAuthorizationUrl: ({ state }) => github.oAuthClient.createAuthorizationURL(state, config),
+            getProviderTokens: ({ code }) => github.oAuthClient.validateAuthorizationCode(code),
+            getProviderInfo: ({ accessToken }) => getGithubProfile(accessToken),
         });
     },
 }
